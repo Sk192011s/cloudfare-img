@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>R2 Image Uploader</title>
+  <style>
+    :root { --primary: #6366f1; --bg: #f8fafc; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); padding: 15px; max-width: 600px; margin: 0 auto; color: #334155; }
+
+    /* Navigation Tabs */
+    .nav { display: flex; background: #e2e8f0; padding: 4px; border-radius: 10px; margin-bottom: 20px; }
+    .nav-item { flex: 1; padding: 10px; text-align: center; cursor: pointer; border-radius: 8px; font-weight: 600; font-size: 14px; color: #64748b; transition: 0.2s; }
+    .nav-item.active { background: white; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+    .view { display: none; animation: fadeIn 0.3s; }
+    .view.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Card Style */
+    .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 20px; }
+
+    /* Upload Section */
+    .sub-tabs { display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
+    .sub-tab { font-size: 13px; font-weight: 600; cursor: pointer; color: #94a3b8; padding: 5px 0; }
+    .sub-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+
+    .inp-area { display: none; } .inp-area.active { display: block; }
+
+    .upload-zone { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 30px; text-align: center; cursor: pointer; background: #f8fafc; color: #64748b; margin-top: 10px; }
+    .upload-zone:active { border-color: var(--primary); background: #eef2ff; color: var(--primary); }
+
+    input, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 8px; box-sizing: border-box; font-family: inherit; }
+    input:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1); }
+
+    .btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 15px; font-size: 15px; }
+    .btn:disabled { opacity: 0.7; cursor: wait; }
+
+    /* List Items */
+    .list-container { min-height: 100px; }
+    .item { display: flex; gap: 12px; padding: 12px; border: 1px solid #f1f5f9; border-radius: 10px; margin-bottom: 10px; background: white; align-items: center; }
+    .thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; background: #eee; border: 1px solid #e2e8f0; }
+    .info { flex: 1; overflow: hidden; }
+    .caption { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .meta { font-size: 12px; color: #94a3b8; margin-top: 3px; }
+    .actions { display: flex; flex-direction: column; gap: 6px; }
+    .btn-sm { padding: 6px 10px; border: none; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; color: white; min-width: 50px; }
+
+    #previewBox { display: none; text-align: center; margin-top: 20px; }
+    #previewImg { max-height: 180px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    #resultBox { display: none; margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0; }
+  </style>
+</head>
+<body>
+
+  <div class="nav">
+    <div class="nav-item active" onclick="setView('upload')">1. Upload</div>
+    <div class="nav-item" onclick="setView('history')">2. History</div>
+  </div>
+
+  <!-- UPLOAD VIEW -->
+  <div id="view-upload" class="view active">
+    <div class="card">
+      <div class="sub-tabs">
+        <div class="sub-tab active" onclick="setInp('file')">FILE UPLOAD</div>
+        <div class="sub-tab" style="margin-left:15px;" onclick="setInp('url')">REMOTE URL</div>
+      </div>
+
+      <div id="inp-file" class="inp-area active">
+        <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+          📸 Tap to Select Image
+        </div>
+        <input type="file" id="fileInput" accept="image/*" style="display:none">
+      </div>
+
+      <div id="inp-url" class="inp-area">
+        <input type="text" id="urlInput" placeholder="Paste image URL here...">
+        <button class="btn" style="background:#475569; margin-top:10px;" onclick="fetchUrl()">Fetch Image</button>
+      </div>
+
+      <div id="previewBox">
+        <div id="sizeMsg" style="font-size:12px; color:#64748b; margin-bottom:8px;"></div>
+        <img id="previewImg">
+        <button class="btn" id="uploadBtn">Upload to R2 🚀</button>
+      </div>
+
+      <div id="resultBox">
+        <label style="font-size:12px; font-weight:bold; color:#059669;">DIRECT LINK:</label>
+        <div style="display:flex; gap:5px;">
+          <input type="text" id="directLink" readonly onclick="this.select()" style="margin-top:0;">
+          <button onclick="copyLink()" style="background:#059669; color:white; border:none; border-radius:8px; padding:0 12px; cursor:pointer;">Copy</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY VIEW -->
+  <div id="view-history" class="view">
+    <div class="card">
+      <b style="color:#0f172a; display:block; margin-bottom:15px;">Upload History</b>
+      <div id="historyList" class="list-container">Loading...</div>
+    </div>
+  </div>
+
+  <script>
+    // --- Navigation ---
+    function setView(v) {
+      document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+      const idx = ['upload', 'history'].indexOf(v);
+      document.querySelectorAll('.nav-item')[idx].classList.add('active');
+      document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
+      document.getElementById('view-' + v).classList.add('active');
+      if (v === 'history') loadHistory();
+    }
+
+    function setInp(t) {
+      document.querySelectorAll('.sub-tab').forEach(e => e.classList.remove('active'));
+      document.querySelectorAll('.inp-area').forEach(e => e.classList.remove('active'));
+      document.getElementById('inp-' + t).classList.add('active');
+      const idx = ['file', 'url'].indexOf(t);
+      document.querySelectorAll('.sub-tab')[idx].classList.add('active');
+    }
+
+    // --- Upload Logic & Smart Compression ---
+    let currFile = null;
+    document.getElementById('fileInput').addEventListener('change', (e) => processFile(e.target.files[0]));
+
+    async function fetchUrl() {
+      const u = document.getElementById('urlInput').value;
+      if (!u) return;
+      try {
+        const res = await fetch('/proxy?url=' + encodeURIComponent(u));
+        const blob = await res.blob();
+        processFile(new File([blob], "remote.jpg", { type: blob.type }));
+      } catch (e) { alert("Failed to fetch image"); }
+    }
+
+    async function processFile(f) {
+      if (!f) return;
+      let msg = `Original: ${(f.size / 1024).toFixed(1)} KB`;
+
+      // 🔥 Smart Compression Logic 🔥
+      if (f.size > 71680) { // 70KB Check
+        msg += " <span style='color:#eab308'>(Compressing...)</span>";
+        document.getElementById('sizeMsg').innerHTML = msg;
+
+        // Step 1: Quality 0.6
+        currFile = await compress(f, 0.6);
+
+        // Step 2: If still > 80KB, Resize
+        if (currFile.size > 81920) {
+          currFile = await compress(f, 0.5, 1200);
+        }
+
+        msg += ` ➝ ${(currFile.size / 1024).toFixed(1)} KB`;
+      } else {
+        currFile = f;
+      }
+
+      document.getElementById('sizeMsg').innerHTML = msg;
+      document.getElementById('previewImg').src = URL.createObjectURL(currFile);
+      document.getElementById('previewBox').style.display = 'block';
+      document.getElementById('resultBox').style.display = 'none';
+      document.getElementById('uploadBtn').style.display = 'block';
+    }
+
+    // Canvas Compressor
+    function compress(file, quality, maxWidth = 0) {
+      return new Promise((resolve) => {
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let w = img.width, h = img.height;
+
+          if (maxWidth > 0 && w > maxWidth) {
+            const ratio = maxWidth / w;
+            w = maxWidth; h = h * ratio;
+          }
+
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          canvas.toBlob(blob => resolve(new File([blob], file.name, { type: "image/jpeg" })), 'image/jpeg', quality);
+        };
+      });
+    }
+
+    // Upload Button
+    document.getElementById('uploadBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('uploadBtn');
+      btn.innerText = "Uploading to R2..."; btn.disabled = true;
+
+      const fd = new FormData(); fd.append('file', currFile);
+      try {
+        const res = await fetch('/upload', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.url) {
+          document.getElementById('directLink').value = data.url;
+          document.getElementById('resultBox').style.display = 'block';
+          btn.style.display = 'none';
+        } else {
+          alert("Upload failed: " + (data.error || "Unknown error"));
+        }
+      } catch (e) { alert("Error uploading: " + e.message); }
+      btn.innerText = "Upload to R2 🚀"; btn.disabled = false;
+    });
+
+    // --- History ---
+    async function loadHistory() {
+      const div = document.getElementById('historyList');
+      div.innerHTML = "<div style='text-align:center; color:#94a3b8; padding:20px;'>Loading...</div>";
+
+      try {
+        const res = await fetch('/history/list');
+        const data = await res.json();
+        const items = data.items || [];
+
+        if (items.length === 0) {
+          div.innerHTML = "<div style='text-align:center; color:#94a3b8; padding:20px;'>Empty</div>";
+          return;
+        }
+
+        div.innerHTML = items.map(i => {
+          const date = new Date(i.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+          return `
+            <div class="item">
+              <img src="${i.public_url}" class="thumb" onclick="window.open(this.src)">
+              <div class="info">
+                <div class="caption" style="font-size:12px; color:#2563eb;">${i.file_name}</div>
+                <div class="meta">${date}</div>
+              </div>
+              <div class="actions">
+                <button class="btn-sm" style="background:#3b82f6" onclick="copyUrl('${i.public_url}')">Copy</button>
+                <button class="btn-sm" style="background:#ef4444" onclick="delHist('${i.id}')">Del</button>
+              </div>
+            </div>`;
+        }).join('');
+      } catch (e) {
+        div.innerHTML = "<div style='color:red; text-align:center'>Error loading list</div>";
+      }
+    }
+
+    // --- Actions ---
+    async function delHist(id) {
+      if (!confirm("Delete from history?")) return;
+      await fetch('/history/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+      loadHistory();
+    }
+    function copyUrl(u) { navigator.clipboard.writeText(u); alert("Copied!"); }
+    function copyLink() { copyUrl(document.getElementById('directLink').value); }
+  </script>
+</body>
+</html>
