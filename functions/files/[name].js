@@ -1,7 +1,19 @@
-// GET /files/1234_photo.jpg → R2 ကနေ ပုံ serve
+// functions/files/[[name]].js
+
 export async function onRequestGet(context) {
   const { MY_BUCKET } = context.env;
-  const fileName = context.params.name;
+  const request = context.request;
+
+  const cache = caches.default;
+  const cacheKey = new Request(request.url, { method: "GET" });
+  const cachedResponse = await cache.match(cacheKey);
+
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+
+  const nameParts = context.params.name;
+  const fileName = Array.isArray(nameParts) ? nameParts.join("/") : nameParts;
 
   if (!fileName) {
     return new Response("Not Found", { status: 404 });
@@ -15,12 +27,21 @@ export async function onRequestGet(context) {
     }
 
     const headers = new Headers();
-    headers.set("Content-Type", object.httpMetadata?.contentType || "image/jpeg");
+    headers.set("Content-Type", object.httpMetadata?.contentType || "application/octet-stream");
     headers.set("Cache-Control", "public, max-age=31536000, immutable");
     headers.set("Access-Control-Allow-Origin", "*");
 
-    return new Response(object.body, { headers });
+    if (object.httpEtag) {
+      headers.set("ETag", object.httpEtag);
+    }
+
+    const response = new Response(object.body, { status: 200, headers });
+
+    context.waitUntil(cache.put(cacheKey, response.clone()));
+
+    return response;
   } catch (e) {
+    console.error("R2 error:", e);
     return new Response("Error retrieving file", { status: 500 });
   }
 }
