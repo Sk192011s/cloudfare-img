@@ -13,10 +13,11 @@ export async function onRequestPost(context) {
       });
     }
 
-    // Unique filename ဖန်တီးခြင်း
+    // Unique filename ဖန်တီးခြင်း (UUID ထည့်ထားလို့ ဘယ်တော့မှ မထပ်နိုင်)
     const timestamp = Date.now();
+    const uuid = crypto.randomUUID();
     const ext = getExtension(file.name, file.type);
-    const fileName = `${timestamp}_${sanitize(file.name)}`;
+    const fileName = `${timestamp}_${uuid}.${ext}`;
 
     // R2 သို့ Upload
     const arrayBuffer = await file.arrayBuffer();
@@ -26,12 +27,12 @@ export async function onRequestPost(context) {
       },
     });
 
-    // Public URL ဖန်တီးခြင်း (pages.dev/files/filename)
+    // Public URL ဖန်တီးခြင်း
     const origin = new URL(context.request.url).origin;
     const publicUrl = `${origin}/files/${fileName}`;
 
     // History KV ထဲ သိမ်းခြင်း
-    const id = timestamp.toString();
+    const id = `${timestamp}_${uuid}`;
     const historyItem = {
       id,
       public_url: publicUrl,
@@ -57,8 +58,4 @@ function getExtension(name, type) {
   if (fromName && fromName !== name) return fromName;
   const map = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" };
   return map[type] || "jpg";
-}
-
-function sanitize(name) {
-  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
